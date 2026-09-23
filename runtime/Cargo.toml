@@ -1,0 +1,13 @@
+[package]
+name = "dlmod-runtime"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+dlmod-core = { path = "../core" }
+windows-sys.workspace = true
+mlua = { version = "0.11", features = ["lua54", "vendored"] }
+

@@ -1,0 +1,13 @@
+[package]
+name = "deathloop-mod-manager"
+version = "0.3.6"
+edition = "2021"
+
+[dependencies]
+dlmod-core = { path = "../core" }
+windows-sys.workspace = true
+windows-sys.features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Controls_Dialogs", "Win32_System_SystemInformation"]
+toml.workspace = true
+sha2.workspace = true
+slint = { version = "1.18", default-features = false, features = ["std", "backend-winit", "renderer-software", "compat-1-2"] }
+png = "0.18"
