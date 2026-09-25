@@ -85,7 +85,7 @@ pub fn game_pid() -> Result<u32> {
         }
         if found.len() != 1 {
             return Err(format!(
-                "Expected one running Deathloop.exe; found {}. Start it and stay at the menu.",
+                "Expected one running Deathloop.exe; found {}. Run one game instance to continue.",
                 found.len()
             ));
         }

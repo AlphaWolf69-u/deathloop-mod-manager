@@ -66,7 +66,7 @@ slint::slint! {
             if root.about-open: Rectangle {
                 background: #301a14; border-radius: 4px;
                 VerticalLayout { padding: 12px; spacing: 8px;
-                    Text { text: "Deathloop Mod Manager 0.3.6"; color: #f7e9dc; }
+                    Text { text: "Deathloop Mod Manager 0.4.0"; color: #f7e9dc; }
                     AboutSlint {}
                     MenuButton {text:"Close about";clicked=>{root.about-open=false;}}
                 }

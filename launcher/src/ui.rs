@@ -137,7 +137,7 @@ fn launch(root: &Path, profile: &str, game: &Path) -> Result<String> {
                     *since = (pid, Instant::now());
                 }
                 if !modded && since.1.elapsed() >= Duration::from_secs(10) {
-                    return Ok("Vanilla process stayed running for 10 seconds; startup DLL detached. Menu readiness not verified.".into());
+                    return Ok("Game launched without mods.".into());
                 }
             } else {
                 observed = None;
@@ -306,9 +306,7 @@ pub fn show(root: PathBuf) -> Result<()> {
                 let root = s.root.clone();
                 let profile = s.selected.clone();
                 ui.set_busy(true);
-                ui.set_status_text(
-                    "Launching. Stay at the menu until activation is confirmed.".into(),
-                );
+                ui.set_status_text("Launching game…".into());
                 let weak = ui.as_weak();
                 std::thread::spawn(move || {
                     let result = std::panic::catch_unwind(|| launch(&root, &profile, &game))

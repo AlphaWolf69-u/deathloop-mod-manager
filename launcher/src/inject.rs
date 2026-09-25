@@ -219,7 +219,7 @@ pub fn enable(root: &Path, profile: &str) -> Result<String> {
                     return Err("Pool verification failed".into());
                 }
                 crate::startup::cancel(root)?;
-                return Ok(format!("Modded profile active: {}.\r\nMap readiness is recorded in logs. Restart Deathloop to return to vanilla.",plan.name));
+                return Ok(format!("Launched with profile: {}.", plan.name));
             }
             3 => {
                 return Err(

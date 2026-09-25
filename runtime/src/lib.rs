@@ -15,6 +15,7 @@ use std::{
 use windows_sys::Win32::System::Threading::GetCurrentProcessId;
 
 static STARTED: AtomicBool = AtomicBool::new(false);
+mod code_patch;
 static STATUS: AtomicU32 = AtomicU32::new(0);
 static VERSION: std::sync::OnceLock<std::ffi::CString> = std::sync::OnceLock::new();
 fn log(root: &Path, message: &str) {
@@ -70,6 +71,7 @@ fn script(
     .map_err(|e| e.to_string())?;
     lua.set_app_data(count);
     let api = lua.create_table().map_err(|e| e.to_string())?;
+    api.set("api_version", 2).map_err(|e| e.to_string())?;
     api.set("base", memory.base).map_err(|e| e.to_string())?;
     let layout = memory.layout()?;
     api.set("build_layout", layout.name)
@@ -112,6 +114,38 @@ fn script(
         .unwrap(),
     )
     .unwrap();
+    let code_memory = memory.clone();
+    let code_patches = patches.clone();
+    let code_enabled = enabled.clone();
+    let code_owner = owner.clone();
+    let installed = Rc::new(Cell::new(false));
+    api.set(
+        "install_code",
+        lua.create_function(move |_, plan: Table| {
+            if !code_enabled.get() {
+                return Err(mlua::Error::external(
+                    "Code installation unavailable during initialization",
+                ));
+            }
+            if installed.get() {
+                return Err(mlua::Error::external(
+                    "This mod already installed code; restart to change it",
+                ));
+            }
+            let plan = code_patch::Plan::parse(plan)?;
+            let address = code_patch::install(
+                &code_memory,
+                &mut code_patches.borrow_mut(),
+                &code_owner,
+                plan,
+            )
+            .map_err(mlua::Error::external)?;
+            installed.set(true);
+            Ok(address)
+        })
+        .map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
     api.set(
         "write_flags",
         lua.create_function(move |_, rows: Table| {

@@ -3,6 +3,7 @@
 #[path = "../../core/src/layout.rs"]
 mod layout;
 use std::{
+    cell::UnsafeCell,
     ffi::c_void,
     sync::{
         atomic::{AtomicU32, Ordering},
@@ -20,12 +21,24 @@ use windows_sys::Win32::{
 static STATUS: AtomicU32 = AtomicU32::new(0);
 // Last completed startup checkpoint. Written with Win32 only, under loader lock.
 static STAGE: AtomicU32 = AtomicU32::new(0);
+struct StartupScratch(UnsafeCell<StartupBuffers>);
+struct StartupBuffers {
+    filename: [u16; 32768],
+    header: [u8; 4096],
+}
+// Only DLL_PROCESS_ATTACH accesses these buffers. Windows serializes DLL entry
+// points under the loader lock, and initialize/diagnostic use them sequentially.
+unsafe impl Sync for StartupScratch {}
+static STARTUP_SCRATCH: StartupScratch = StartupScratch(UnsafeCell::new(StartupBuffers {
+    filename: [0; 32768],
+    header: [0; 4096],
+}));
 unsafe fn diagnostic(ok: bool) {
-    let mut filename = [0u16; 32768];
+    let filename = &mut (*STARTUP_SCRATCH.0.get()).filename;
     let suffix = [
         100, 108, 109, 111, 100, 45, 115, 116, 97, 114, 116, 117, 112, 46, 108, 111, 103,
     ];
-    if !path(&suffix, &mut filename) {
+    if !path(&suffix, filename) {
         return;
     }
     let file = CreateFileW(
@@ -109,7 +122,7 @@ unsafe fn replace(a: usize, b: &[u8]) -> bool {
     let mut discarded = 0;
     VirtualProtect(a as *const c_void, b.len(), old, &mut discarded) != 0
 }
-unsafe fn path(suffix: &[u16], out: &mut [u16; 32768]) -> bool {
+unsafe fn path(suffix: &[u16], out: &mut [u16]) -> bool {
     let n = GetModuleFileNameW(std::ptr::null_mut(), out.as_mut_ptr(), out.len() as u32) as usize;
     if n == 0 || n >= out.len() {
         return false;
@@ -126,9 +139,10 @@ unsafe fn path(suffix: &[u16], out: &mut [u16; 32768]) -> bool {
 }
 unsafe fn initialize() -> bool {
     STAGE.store(1, Ordering::Relaxed);
-    let mut filename = [0u16; 32768];
+    let scratch = &mut *STARTUP_SCRATCH.0.get();
+    let filename = &mut scratch.filename;
     let marker: [u16; 12] = [100, 108, 109, 111, 100, 46, 108, 97, 117, 110, 99, 104]; // dlmod.launch
-    if !path(&marker, &mut filename) {
+    if !path(&marker, filename) {
         return false;
     }
     let file = CreateFileW(
@@ -183,8 +197,8 @@ unsafe fn initialize() -> bool {
     }
     let base = GetModuleHandleW(std::ptr::null()) as usize;
     STAGE.store(5, Ordering::Relaxed);
-    let mut head = [0u8; 4096];
-    if !read(base, &mut head) || &head[..2] != b"MZ" {
+    let head = &mut scratch.header;
+    if !read(base, head) || &head[..2] != b"MZ" {
         return false;
     }
     let pe = u32::from_le_bytes(head[60..64].try_into().unwrap()) as usize;
@@ -290,7 +304,7 @@ pub unsafe extern "system" fn DirectInput8Create(
         // EOS hooks both dinput8 exports when we lazily load System32's DLL.
         // Its single stored original then points back here, forming a loop.
         // The manager copies the local Windows DLL under a private basename.
-        let mut filename = [0u16; 32768];
+        let mut filename = vec![0u16; 32768];
         let suffix: Vec<u16> = "dlmod-system-input.dll".encode_utf16().collect();
         if !path(&suffix, &mut filename) {
             return 0;

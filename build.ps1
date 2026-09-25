@@ -9,7 +9,7 @@ try {
     & $cargo build --release --workspace --locked
     if ($LASTEXITCODE -ne 0) { throw 'Rust build failed' }
     & (Join-Path $PSScriptRoot 'set-icon.ps1') -Executable (Join-Path $PSScriptRoot 'target\release\deathloop-mod-manager.exe')
-    $dest=Join-Path $PSScriptRoot 'dist\DeathloopModManager-0.3.6'
+    $dest=Join-Path $PSScriptRoot 'dist\DeathloopModManager-0.4.1'
     New-Item -ItemType Directory -Path $dest -Force | Out-Null
     foreach($source in @('target\release\deathloop-mod-manager.exe','target\release\dlmod_runtime.dll','README.md')) {
         $target=Join-Path $dest (Split-Path -Leaf $source)
@@ -35,7 +35,7 @@ try {
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot "package\$name") -Destination $stage -Recurse
         }
         Get-ChildItem -LiteralPath $stage -Recurse -File | Where-Object LastWriteTime -LT ([datetime]'1980-01-01') | ForEach-Object { $_.LastWriteTime=[datetime]'1980-01-01' }
-        Compress-Archive -Path (Join-Path $stage '*') -DestinationPath (Join-Path $PSScriptRoot 'dist\DeathloopModManager-0.3.6.zip') -Force
+        Compress-Archive -Path (Join-Path $stage '*') -DestinationPath (Join-Path $PSScriptRoot 'dist\DeathloopModManager-0.4.1.zip') -Force
     } finally {
         $resolvedStage=(Resolve-Path -LiteralPath $stage).Path
         if (-not $resolvedStage.StartsWith((Join-Path $PSScriptRoot 'dist\package-'),[StringComparison]::OrdinalIgnoreCase)) { throw 'Unexpected staging path' }

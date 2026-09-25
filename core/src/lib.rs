@@ -7,6 +7,7 @@ use std::{
 };
 
 pub type Result<T> = std::result::Result<T, String>;
+pub mod code;
 pub mod layout;
 pub mod profiles;
 pub const GAME_BUILD: &str = "VoidEngine v1.820.5.1 Content v551_Retail_env2_playfab";
@@ -431,7 +432,7 @@ pub struct Patches {
 }
 
 impl Patches {
-    pub fn apply(&mut self, memory: &impl Memory, owner: &str, writes: &[Write]) -> Result<()> {
+    pub fn validate(&self, memory: &impl Memory, owner: &str, writes: &[Write]) -> Result<()> {
         if writes.len() > 4096 {
             return Err("Transaction too large".into());
         }
@@ -458,6 +459,20 @@ impl Patches {
                 return Err(format!("Memory changed at {:X}", w.address));
             }
         }
+        Ok(())
+    }
+
+    /// Reserve successfully installed code sites in the same ownership map as data mods.
+    pub fn claim(&mut self, owner: &str, writes: &[Write]) {
+        for w in writes {
+            for a in w.address..w.address + w.value.len() {
+                self.owners.insert(a, owner.into());
+            }
+        }
+    }
+
+    pub fn apply(&mut self, memory: &impl Memory, owner: &str, writes: &[Write]) -> Result<()> {
+        self.validate(memory, owner, writes)?;
         for (i, w) in writes.iter().enumerate() {
             let result = memory.write(w.address, &w.value).and_then(|_| {
                 if memory.read(w.address, w.value.len())? == w.value {
@@ -482,9 +497,7 @@ impl Patches {
                 return Err(format!("{e}; rollback problems: {rollback:?}"));
             }
         }
-        for a in bytes {
-            self.owners.insert(a, owner.into());
-        }
+        self.claim(owner, writes);
         Ok(())
     }
 }

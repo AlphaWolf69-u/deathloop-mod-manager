@@ -9,5 +9,5 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 dlmod-core = { path = "../core" }
 windows-sys.workspace = true
+windows-sys.features = ["Win32_System_Kernel"]
 mlua = { version = "0.11", features = ["lua54", "vendored"] }
-
